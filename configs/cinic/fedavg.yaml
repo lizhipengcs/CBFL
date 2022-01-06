@@ -1,0 +1,39 @@
+data_name: cinic
+
+#data_path: /home/lizhipeng/project/federated_learning/data #224
+#data_path: /home/xiezheng/liuzhiqiang/FedGAN/data #186
+#data_path: /home/datasets/cifar # 231
+data_path: /home/lizhipeng/project/federated_learning/data/CINIC-10 # 188、170, 246
+#data_path: /home/xiezheng/liuzhiqiang/cifar # 151, 245
+#data_path: /home/dataset/cifar # 244
+partition_type: dirichlet # dirichlet、iid、n_class_non_iid     # Scheme of data division
+dirichlet_alpha: 0.1  # 0.05, 0.1, 0.5, 1.0
+dirichlet_threshold: 5
+show_distribution: False
+num_classes: 10  # class
+balance: False
+local_model_local_test: False
+local_model_global_test: True
+
+resumed_model: False
+#resumed_model: /home/lizhipeng/project/federated_learning/FederatedLearning/results/fedavg_cinic_dirichlet_resnet_7777/fedavg-cinic10-unbalanced-dirichlet0.1-100client_0.1sample-localepoch1-4000epoch/best_model.pth.tar
+only_eval: False
+
+model_name: mobilenetv2  # resnet、mobilenetv2
+model_depth: ''  # lenet: 5, mobilenetv2: ''
+batch_size: 50
+num_workers: 3
+lr_scheduler: decay  # decay cosin
+lr: 0.1  # lenet: 0.01, others: 0.1
+lr_decay: 0.996
+lr_decay_interval: 1
+momentum: 0.9
+weight_decay: 0.0001
+total_round: 1000
+local_round: 5
+save_rounds: []
+optimizer: SGD
+
+aggregation_type: fedavg_imagenet       # fedavg
+num_clients: 100                # Number of total clients
+sampled_ratio: 0.1              # Ratio of sampled clients in each round
