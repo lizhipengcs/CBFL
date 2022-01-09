@@ -7,7 +7,6 @@ import torch
 import random
 import numpy as np
 from shutil import copyfile
-from models.Nets import PreBasicBlock
 from models.resnet import ResUnit
 import torch.distributed as dist
 from torch.distributed.distributed_c10d import _get_default_group

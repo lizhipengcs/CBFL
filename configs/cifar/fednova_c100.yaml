@@ -1,37 +1,29 @@
 data_name: cifar
 
-#data_path: /home/chenyaofo/datasets/cifar10 #224
-data_path: /mnt/cephfs/home/lizhipeng/gpu022_home/project/federated_learning/data #246, 224
-#data_path: /home/dataset/cifar # 188、170, 244
-partition_type: dirichlet # dirichlet、iid、n_class_non_iid     # Scheme of data division
-dirichlet_alpha: 0.1  # 0.05, 0.1, 0.5, 1.0
-dirichlet_threshold: 5 # 5 for dirichlet 100
-show_distribution: False
+data_path: /mnt/cephfs/home/lizhipeng/gpu022_home/project/federated_learning/data
+partition_type: dirichlet # Scheme of data division
+dirichlet_alpha: 0.1
+dirichlet_threshold: 5
 num_classes: 100  # class
 balance: False
-local_model_local_test: True
-local_model_global_test: True
 
 resumed_model: False
 only_eval: False
 
 num_worker: 2
-model_name: mobilenetv2  # vgg、resnet、mobilenetv2
-model_depth: ''  # lenet: 5, mobilenetv2: ''
+model_name: resnet  # mobilenetv2
 batch_size: 50
-lr_scheduler: decay  # decay cosin
-lr: 0.01  # lenet: 0.01, others: 0.1
+lr: 0.01
 lr_decay: 1
 lr_decay_interval: 1
 momentum: 0.9
 weight_decay: 0.0001
-total_round: 2000
+total_round: 1000
 local_round: 5
 save_interval: 100
 save_rounds: []
-optimizer_type: SGD
 
-aggregation_type: fednova_imagenet        # fedavg
+aggregation_type: fednova
 num_clients: 100                # Number of total clients
 sampled_ratio: 0.1              # Ratio of sampled clients in each round
 

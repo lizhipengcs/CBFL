@@ -75,26 +75,3 @@ class FederatedDatasetDirichlet(FederatedDataset):
                     self.indices[user].extend(sampled_list)
                     classes[n] = classes[n][no_imgs:]
 
-
-class FederatedInaturalist(FederatedDataset):
-    """
-    Create federated dataset for dirichlet sampling setting.
-    """
-
-    def __init__(self, dataset, csvFile, num_clients, batch_size=50, num_workers=0, server_ratio=0, dirichlet_alpha=0.5,
-                 balance=True, seed=7777, data_name='cifar', **kwargs):
-        self.alpha = dirichlet_alpha
-        self.balance = balance
-        self.seed = seed
-        self.csvFile = csvFile
-        super().__init__(dataset, num_clients, PARTITION_TYPE, batch_size, num_workers, server_ratio, data_name)
-
-    def get_clients_dataset_indices(self):
-        csvFile = open(self.csvFile, "r")
-        reader = csv.reader(csvFile)
-        for item in reader:
-            # 忽略第一行
-            if reader.line_num == 1:
-                continue
-            self.indices[int(item[0])].append((item[1], item[2], int(item[3])))
-        csvFile.close()
