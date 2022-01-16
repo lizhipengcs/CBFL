@@ -13,8 +13,8 @@ only_eval: False
 num_worker: 2
 model_name: resnet  # resnet、mobilenetv2
 batch_size: 50
-lr: 0.1
-lr_decay: 0.996
+lr: 0.01
+lr_decay: 1
 lr_decay_interval: 1
 momentum: 0.9
 weight_decay: 0.0001
@@ -24,6 +24,6 @@ save_interval: 500
 save_rounds: []
 
 aggregation_type: scaffold
-num_clients: 16                # Number of total clients
-sampled_ratio: 1              # Ratio of sampled clients in each round
+num_clients: 100                # Number of total clients
+sampled_ratio: 0.1              # Ratio of sampled clients in each round
 

@@ -25,6 +25,6 @@ save_interval: 1000
 save_rounds: []
 
 aggregation_type: scaffold
-num_clients: 16                # Number of total clients
-sampled_ratio: 1              # Ratio of sampled clients in each round
+num_clients: 100                # Number of total clients
+sampled_ratio: 0.1              # Ratio of sampled clients in each round
 
