@@ -5,14 +5,9 @@ from utils.utils import *
 from trainer import *
 from models import *
 from dataset import build_dataset
-from torch.utils.data import DataLoader, Subset
-from torch.optim.lr_scheduler import CosineAnnealingLR
 from utils.utils import fix_random
 
-from torch.nn.parallel import DistributedDataParallel as DDP
-
-from torchutils import logger, output_directory
-from torchutils.distributed import is_dist_avail_and_init, local_rank, is_master
+from torchutils.distributed import local_rank, is_master
 
 
 def main():
@@ -51,12 +46,7 @@ def main():
     if is_master():
         save_opts(params, trainer.save_folder)
 
-    if not params['only_eval']:
-        trainer.run()
-    else:
-        trainer.logger.info("Testing...")
-        round_loss, round_top1, round_top5 = trainer.model_evaluation()
-        trainer.logger.info(f"top1:{round_top1:.2f}, top5:{round_top5:.2f}, loss:{round_loss:.2f}")
+    trainer.run()
 
 
 def create_model(model_name, data_name, num_classes):

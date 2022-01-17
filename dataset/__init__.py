@@ -1,7 +1,5 @@
 from dataset.federated_dataset import FederatedDataset
 from dataset.federated_dataset_dirichlet import FederatedDatasetDirichlet
-import torch.nn.functional as F
-import os
 from torchvision import transforms
 from torchvision import datasets
 

@@ -8,7 +8,6 @@ num_classes: 10  # class
 balance: False
 
 resumed_model: False
-only_eval: False
 
 num_worker: 2
 model_name: resnet  # mobilenetv2

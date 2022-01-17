@@ -2,7 +2,6 @@ import numpy as np
 import random
 
 from dataset.federated_dataset import FederatedDataset
-import csv
 
 PARTITION_TYPE = 'DIRICHLET'
 

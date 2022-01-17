@@ -2,21 +2,17 @@ import random
 import copy
 import torch
 from utils.utils import TimeRecorder, save_checkpoint
-from utils.lr_scheduler import StepLR, CosinLR
-from torch.utils.data import DataLoader, Subset, Dataset
+from utils.lr_scheduler import StepLR
+from torch.utils.data import DataLoader, Subset
 from trainer.base_trainer import BaseTrainer
-from utils.utils import AverageMeter, accuracy
 from utils.loss_function import loss_cross_entropy
 
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data.distributed import DistributedSampler
-# from .base_trainer import SHARED_TASK_FILE
 
 from torchutils.metrics import AverageMetric, AccuracyMetric
 from torchutils.distributed import is_master, rank, world_size, local_rank
-# from utils.task_allocate import find_first_available_task, reset_task_file
 import torch.distributed as tdist
-from torchutils.metrics import _all_reduce
 from utils.utils import st_all_reduce, coff_all_reduce, st_broadcast, partition, st_copy
 from collections import OrderedDict
 
@@ -25,7 +21,6 @@ class FederatedNova(BaseTrainer):
 
     def __init__(self, params):
         self.params = params
-        # self.multi_gpus = torch.cuda.device_count() > 1
         self.num_clients = params.get('num_clients', 1)
         self.num_classes = params.get('num_classes', 10)
 
@@ -72,11 +67,10 @@ class FederatedNova(BaseTrainer):
         # adjust lr
         lr_scheduler = StepLR(self.lr, self.params['lr_decay'], self.params['lr_decay_interval'])
 
-        best_top1 = 0
-        best_top5 = 0
+        best_acc = 0
         best_round = -1
 
-        global_weight = None
+        global_delta_weight = None
         coeff = None
 
         model = copy.deepcopy(self.global_model)
@@ -89,14 +83,14 @@ class FederatedNova(BaseTrainer):
             assert len(self.selected_clients) > 0
 
             clients_weight = self.get_clients_weight()
-            if global_weight is None:
-                global_weight = OrderedDict()
+            if global_delta_weight is None:
+                global_delta_weight = OrderedDict()
                 for name, data in self.global_model.state_dict().items():
                     if 'num_batches_tracked' in name:
                         continue
-                    global_weight[name] = torch.zeros_like(data)
+                    global_delta_weight[name] = torch.zeros_like(data)
             else:
-                for name, data in global_weight.items():
+                for name, data in global_delta_weight.items():
                     data.data.zero_()
             if coeff is None:
                 coeff = torch.tensor([0.0]).cuda()
@@ -115,70 +109,58 @@ class FederatedNova(BaseTrainer):
                 data_iterator = self.client_train_loader[client_id]
                 tau = 0
                 for internal_epoch in range(1, self.local_round + 1):
-                    self.global_model.eval()
                     model.train()
-                    obj = AverageMeter()
-                    total_top1 = AverageMeter()
-                    total_top5 = AverageMeter()
                     for batch_id, (data, targets) in enumerate(data_iterator):
                         data = data.to(self.device)
                         targets = targets.to(self.device)
                         optimizer.zero_grad()
                         output = model(data)
                         loss = loss_cross_entropy(output, targets)
-                        top1, top5 = accuracy(output, targets, topk=(1, 5))
                         loss.backward()
                         optimizer.step()
-                        obj.update(loss.item(), data.size(0))
-                        total_top1.update(top1.item(), data.size(0))
-                        total_top5.update(top5.item(), data.size(0))
                         tau += 1
                 a_i = (tau - self.momentum * (1 - pow(self.momentum, tau)) / (1 - self.momentum)) / (1 - self.momentum)
 
                 local_state_dict = model.state_dict()
                 global_model_para = self.global_model.state_dict()
-                for name in global_weight.keys():
+                for name in global_delta_weight.keys():
                     if 'num_batches_tracked' in name:
                         continue
                     if 'bn' in name:
-                        global_weight[name].add_((global_model_para[name] - local_state_dict[name]) * clients_weight[client_id])
+                        global_delta_weight[name].add_((global_model_para[name] - local_state_dict[name]) * clients_weight[client_id])
                     else:
-                        global_weight[name].add_(torch.true_divide(global_model_para[name] - local_state_dict[name], a_i)* clients_weight[client_id])
-
+                        global_delta_weight[name].add_(torch.true_divide(global_model_para[name] - local_state_dict[name], a_i)* clients_weight[client_id])
 
                 coeff += a_i * clients_weight[client_id]
 
             tdist.barrier()
-            st_all_reduce(global_weight)
+            st_all_reduce(global_delta_weight)
             coff_all_reduce(coeff)
 
             updated_model = self.global_model.state_dict()
             for key in updated_model:
                 if 'num_batches_tracked' in key:
                     continue
-
                 elif 'bn' in key:
-                    updated_model[key] -= global_weight[key]
+                    updated_model[key] -= global_delta_weight[key]
                 else:
-                    updated_model[key] -= coeff.item() * global_weight[key]
+                    updated_model[key] -= coeff.item() * global_delta_weight[key]
 
             st_copy(src=updated_model, dst=self.global_model.state_dict())
 
-            round_loss, round_top1, round_top5 = self.distributed_evaluation(
+            round_loss, round_acc = self.distributed_evaluation(
                 self.global_model, self.dataset["test"].dataset, self.device
             )
 
-            if lr_scheduler is not None:
-                self.lr = lr_scheduler.update(federated_round)
+            self.lr = lr_scheduler.update(federated_round)
 
             self.writer.add_scalar(f'test/round_loss', round_loss, federated_round)
-            self.writer.add_scalar(f'test/round_top1', round_top1/100.0, federated_round)
-            self.writer.add_scalar(f'test/round_top5', round_top5/100.0, federated_round)
+            self.writer.add_scalar(f'test/round_acc', round_acc/100.0, federated_round)
 
             state_dict = {'state_dict': self.global_model.state_dict(), 'round': federated_round, 'lr': self.lr}
             if is_master():
-                if round_top1 > best_top1:
-                    best_top1, best_top5, best_round = round_top1, round_top5, federated_round
+                if round_acc > best_acc:
+                    best_acc, best_round = round_acc, federated_round
                     save_checkpoint(state_dict, True, self.save_folder)
                 else:
                     save_checkpoint(state_dict, False, self.save_folder)
@@ -187,8 +169,8 @@ class FederatedNova(BaseTrainer):
                     torch.save(state_dict, checkpoint_name)
             time_recoder.update()
             self.logger.info(
-                f"Round {federated_round}, lr:{self.lr}, top1:{round_top1:.2f}%, top5:{round_top5:.2f}%, "
-                f"@Best:({best_top1:.2f}%, {best_top5:.2f}%, {best_round})")
+                f"Round {federated_round}, lr:{self.lr}, acc:{round_acc:.2f}%,"
+                f"@Best:({best_acc:.2f}%, {best_round})")
 
     def client_selection(self):
         """
@@ -202,16 +184,6 @@ class FederatedNova(BaseTrainer):
         By default, we consider there are no stragglers and other techniques.
         """
         pass
-
-    def calculate_communication_cost(self):
-        """
-        Model propagation between the sever and local device will incur communication costs.
-        We calculate total parameter propagated for all rounds by default.
-        :return:
-        """
-        model_parameter = sum(map(lambda p: p.numel(), self.global_model.parameters()))
-        total_cost = model_parameter * self.total_round * 2
-        return total_cost
 
     def get_data_loaders(self):
         for i in range(self.num_clients):
@@ -250,43 +222,15 @@ class FederatedNova(BaseTrainer):
 
     # @staticmethod
     def train(self, model, optimizer, data_loader, device):
-        self.global_model.eval()
         model.train()
-        obj = AverageMeter()
-        total_top1 = AverageMeter()
-        total_top5 = AverageMeter()
         for batch_id, (data, targets) in enumerate(data_loader):
             data = data.to(device)
             targets = targets.to(device)
             optimizer.zero_grad()
             output = model(data)
             loss = loss_cross_entropy(output, targets)
-            top1, top5 = accuracy(output, targets, topk=(1, 5))
             loss.backward()
             optimizer.step()
-            obj.update(loss.item(), data.size(0))
-            total_top1.update(top1.item(), data.size(0))
-            total_top5.update(top5.item(), data.size(0))
-
-        return obj, total_top1, total_top5
-
-    @staticmethod
-    def evaluation(model, data_loader, device):
-        model.eval()
-        obj = AverageMeter()
-        total_top1 = AverageMeter()
-        total_top5 = AverageMeter()
-        with torch.no_grad():
-            for batch_id, (data, targets) in enumerate(data_loader):
-                data = data.to(device)
-                targets = targets.to(device)
-                output = model(data)
-                loss = loss_cross_entropy(output, targets)
-                top1, top5 = accuracy(output, targets, topk=(1, 5))
-                obj.update(loss.item(), data.size(0))
-                total_top1.update(top1.item(), data.size(0))
-                total_top5.update(top5.item(), data.size(0))
-        return obj, total_top1, total_top5
 
     def get_clients_weight(self):
         """
@@ -304,12 +248,11 @@ class FederatedNova(BaseTrainer):
     def distributed_evaluation(self, model, dataset, device):
         dist_model = DDP(model, device_ids=[local_rank()])
         dist_model.eval()
-        # dataset = data_loader.dataset
         dist_data_loader = torch.utils.data.DataLoader(
                 dataset, batch_size=self.batch_size, pin_memory=False,
                 sampler=DistributedSampler(dataset, shuffle=False), num_workers=self.num_workers)
         loss_metric = AverageMetric()
-        accuracy_metric = AccuracyMetric(topk=(1, 5))
+        accuracy_metric = AccuracyMetric(topk=(1,))
 
         critirion = torch.nn.CrossEntropyLoss()
         for iter_, (inputs, targets) in enumerate(dist_data_loader):
@@ -320,4 +263,4 @@ class FederatedNova(BaseTrainer):
 
             loss_metric.update(loss)
             accuracy_metric.update(logits, targets)
-        return loss_metric.compute(), accuracy_metric.at(1).rate*100, accuracy_metric.at(5).rate*100
+        return loss_metric.compute(), accuracy_metric.at(1).rate*100

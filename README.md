@@ -1,6 +1,6 @@
 # Code for CBFL(类别均衡联邦学习)
 
-目前，本仓库开源了所有baseline对比方法（FedAvg、FedProx、SCAFFOLD、FedNova）的复现代码，所提出的CBFL算法代码将在论文被接收后开源。
+目前，本仓库开源了所有baseline对比方法（FedAvg、FedProx、SCAFFOLD、FedNova）的实现代码，所提出的CBFL算法代码将在论文被接收后开源。
 
 ## 环境准备
 

@@ -1,15 +1,7 @@
-import numpy as np
-import prettytable as pt
-import matplotlib.pyplot as plt
-import matplotlib
-matplotlib.use('Agg')
 
-from matplotlib.pyplot import MultipleLocator
-import matplotlib as mpl
-import matplotlib.ticker as ticker
-mpl.rcParams['font.sans-serif'] = ['SimSun']
-mpl.rcParams['axes.unicode_minus'] = False
-import torch
+# import prettytable as pt
+# import matplotlib as mpl
+
 from collections import defaultdict
 
 
@@ -42,16 +34,14 @@ class FederatedDataset(object):
         self.run()
 
     def run(self):
-        # self.get_server_dataset_indices()
-        # if self.server_ratio < 1:
         self.get_clients_dataset_indices()
 
-    def __str__(self):
-        tb = pt.PrettyTable()
-        tb.field_names = ['name', 'value']
-        tb.add_row(['Number of Clients', self.num_clients])
-        tb.add_row(['Partition Type', self.partition_type])
-        return tb.__str__()
+    # def __str__(self):
+    #     tb = pt.PrettyTable()
+    #     tb.field_names = ['name', 'value']
+    #     tb.add_row(['Number of Clients', self.num_clients])
+    #     tb.add_row(['Partition Type', self.partition_type])
+    #     return tb.__str__()
 
     def get_clients_dataset_indices(self):
         """
