@@ -1,18 +1,18 @@
 data_name: cifar
 
 data_path: /home/lzp/workspace/tmp/data 
-partition_type: dirichlet # Scheme of data division
-dirichlet_alpha: 0.1
-dirichlet_threshold: 5
-num_classes: 10
+partition_type: dirichlet 
+dirichlet_alpha: 0.1  
+dirichlet_threshold: 5  
+num_classes: 100
 balance: False
 
 resumed_model: False
 
 num_worker: 2
-model_name: resnet
+model_name: resnet  
 batch_size: 50
-lr: 0.1
+lr: 0.1  
 lr_decay: 0.996
 lr_decay_interval: 1
 momentum: 0.9
@@ -22,7 +22,22 @@ local_round: 5
 save_interval: 100
 save_rounds: []
 
-aggregation_type: fedavg        # fedavg
+aggregation_type: cbfl        
 num_clients: 100               # Number of total clients
 sampled_ratio: 0.1              # Ratio of sampled clients in each round
 
+img_size: 32
+img_channels: 3
+latent_dim: 100
+lr_G: 0.003 
+iterations: 2000
+first_iterations: 2000
+gen_interval: 7
+gen_batch_size: 256
+fake_batch_size: 70
+warmup_round: 800
+alpha_fake: 1
+temperature: 5
+BNS_w: 10
+AT_w: 400
+KD_w: 1

@@ -1,6 +1,6 @@
 data_name: cifar
 
-data_path: /mnt/cephfs/home/lizhipeng/gpu022_home/project/federated_learning/data
+data_path: /home/lzp/workspace/tmp/data 
 partition_type: dirichlet  # Scheme of data division
 dirichlet_alpha: 0.1
 dirichlet_threshold: 5

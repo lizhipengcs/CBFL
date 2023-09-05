@@ -30,9 +30,11 @@ class TimeRecorder(object):
         self.total_time += elapsed_time
         self.remaining_time = elapsed_time * (self.epochs - self.start_epoch)
         self.start_epoch += 1
-        self.logger.info(f'Last Iter Cost time=>{self.format_time(elapsed_time)}')
+        self.logger.info(
+            f'Last Iter Cost time=>{self.format_time(elapsed_time)}')
         self.logger.info(f'Cost time=>{self.format_time(self.total_time)}')
-        self.logger.info(f'Remaining time=>{self.format_time(self.remaining_time)}')
+        self.logger.info(
+            f'Remaining time=>{self.format_time(self.remaining_time)}')
 
     @staticmethod
     def format_time(time):
@@ -40,6 +42,47 @@ class TimeRecorder(object):
         m = (time % 3600) // 60
         s = (time % 3600) % 60
         return f'{h}h{m}m{s:.2f}s'
+
+
+class AverageMeter(object):
+    """
+    Keeps track of most recent, average, sum, and count of a metric.
+    """
+
+    def __init__(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
+
+
+def accuracy(output, target, topk=(1,)):
+    maxk = max(topk)
+    batch_size = target.size(0)
+
+    _, pred = output.topk(maxk, 1, True, True)
+    pred = pred.t()
+    correct = pred.eq(target.view(1, -1).expand_as(pred))
+
+    res = []
+    for k in topk:
+        correct_k = correct[:k].view(-1).float().sum(0)
+        res.append(correct_k.mul_(100.0 / batch_size))
+        # res.append(correct_k)
+    return res
 
 
 def save_opts(opts, save_path='.'):
@@ -111,10 +154,11 @@ class ModelHook:
 def st_broadcast(state_dict):
     # this function is tested on PyTorch 1.6.0
     dist._broadcast_coalesced(
-            _get_default_group(), 
-            list(state_dict.values()), 
-            int(250 * 1024 * 1024), # copy from https://github.com/pytorch/pytorch/blob/master/torch/nn/parallel/distributed.py
-        )
+        _get_default_group(),
+        list(state_dict.values()),
+        # copy from https://github.com/pytorch/pytorch/blob/master/torch/nn/parallel/distributed.py
+        int(250 * 1024 * 1024),
+    )
 
 
 def st_all_reduce(state_dict, op=dist.ReduceOp.SUM):

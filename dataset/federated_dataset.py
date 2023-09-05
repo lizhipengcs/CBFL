@@ -1,6 +1,4 @@
-
-# import prettytable as pt
-# import matplotlib as mpl
+import numpy as np
 
 from collections import defaultdict
 
@@ -36,16 +34,29 @@ class FederatedDataset(object):
     def run(self):
         self.get_clients_dataset_indices()
 
-    # def __str__(self):
-    #     tb = pt.PrettyTable()
-    #     tb.field_names = ['name', 'value']
-    #     tb.add_row(['Number of Clients', self.num_clients])
-    #     tb.add_row(['Partition Type', self.partition_type])
-    #     return tb.__str__()
-
     def get_clients_dataset_indices(self):
         """
           To get indices of dataset in each client, which satisfy some federated distribution.
           That is, fill in 'self.indices[client_id]'.
         """
         raise NotImplementedError
+
+    def get_reverse_label_distribution(self):
+        num_classes = len(self.dataset.classes)
+        distribution = np.zeros((self.num_clients, num_classes))
+        targets = self.dataset.targets
+        for client_id in range(self.num_clients):
+            for idx in self.indices[client_id]:
+                target = targets[idx]
+                distribution[client_id][target] += 1
+        weights_distribution = np.zeros_like(distribution)
+        for i in range(len(weights_distribution)):
+            for j in range(len(weights_distribution[i])):
+                weights_distribution[i][j] = distribution[i][j] / np.sum(distribution[i])
+        
+        # get reverse distribution
+        weights_distribution = 1 - weights_distribution
+        # normalization
+        weights_distribution = weights_distribution / (num_classes - 1)
+        
+        return weights_distribution
